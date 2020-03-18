@@ -1,0 +1,11 @@
+*
+!.gitignore
+!source
+!source/*
+!constraints
+!constraints/*
+!tcl
+!tcl/*
+!tests
+!tests/*
+!I2C_EEPROM_M24C32DW6.pdf
