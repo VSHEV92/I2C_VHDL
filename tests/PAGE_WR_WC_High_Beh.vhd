@@ -1,19 +1,21 @@
 --------------------------------------------------------------------------------------------------------------
 ------------------------------- Тест поведенческих моделей I2C мастера и I2C EEPROM --------------------------
 --------------------------------------------------------------------------------------------------------------
-------------------------------------------- Режим записи: PAGE WRITE -----------------------------------------
-------------------------------------------- Режим чтения: SEQUANTIAL RANDOM READ -----------------------------
-------------------------------------------- Время моделирования: 12 ms ---------------------------------------
+------------------------------------------- Режим записи: PAGE WRITE при высоком сигнале WC_n ----------------
+------------------------------------------- Режим чтения: не важен -------------------------------------------
+------------------------------------------- Время моделирования: 3 ms ----------------------------------------
 --------------------------------------------------------------------------------------------------------------
+-- I2C EEPROM должен посылать NACK при попытке записи байта, I2C мастера должен высталять '1' на выход 
+-- error при получении NACK. Тест подсчитывает число импульсов error, при попытке записать 16 байт 
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
-entity PAGE_WR_SEQ_RAND_RD_Beh is
-end PAGE_WR_SEQ_RAND_RD_Beh;
+entity PAGE_WR_WC_High_Beh is
+end PAGE_WR_WC_High_Beh;
 
-architecture Behavioral of PAGE_WR_SEQ_RAND_RD_Beh is
+architecture Behavioral of PAGE_WR_WC_High_Beh is
 
 -- процедура для вывода данных без сообщений от Vivado
 procedure echo (arg : in string := "") is
@@ -22,7 +24,7 @@ begin
 end procedure echo;
 
 ------------------------------------ Параметры теста ------------------------------------
-constant Input_Data_File : string  := "/home/vovan/VivadoProjects/I2C_EEPROM/tests/PAGE_WR_SEQ_RAND_RD.txt";
+constant Input_Data_File : string  := "/home/vovan/VivadoProjects/I2C_EEPROM/tests/PAGE_WR_WC_High.txt";
 constant SCL_Freq        : integer := 100000; -- частота сигнала SCL в Гц
 -----------------------------------------------------------------------------------------
 
@@ -89,53 +91,34 @@ I2C_EEPROM_1: I2C_EEPROM
     Port Map (
         SCL  => SCL,
         SDA  => SDA,
-        WC_n => '0',
+        WC_n => '1',  -- !!! высокий уровень препятствует записи
         E    => "000"
     );
 
 -----------------------------------------------------------------------------------------
 --------------------------- проверка результатов ----------------------------------------
-process (tx_data_valid, rx_data_valid, error, done)
+process (error, done)
     variable Time_Var : time := 0 ns;
-    variable counter_tx : integer := 0;
-    variable counter_rx : integer := 0;
-    variable data_tx_var : Results_Array_Type;
-    variable data_rx_var : Results_Array_Type;
+    variable counter_error : integer := 0;
     variable test_result : string(1 to 4) := "PASS";
 begin
-    -- записываем передаваемое слово
-    if rising_edge(tx_data_valid) then
-        data_tx_var(counter_tx) := tx_data;
-        counter_tx := counter_tx + 1;
-    end if;
     
-    -- записываем полученное слово
-    if rising_edge(rx_data_valid) then
-        data_rx_var(counter_rx) := rx_data;
-        -- сравниваем значение слов
-        if data_rx_var(counter_rx) /= data_tx_var(counter_rx) then
-            echo("TX and RX data doesn't match!" & LF);
-            echo("TX word number " & integer'image(counter_rx) & " has value = " & integer'image(TO_INTEGER(UNSIGNED(data_tx_var(counter_rx)))) & LF);
-            echo("RX word number " & integer'image(counter_rx) & " has value = " & integer'image(TO_INTEGER(UNSIGNED(data_rx_var(counter_rx)))) & LF);
-            echo("" & LF);
-            test_result := "FAIL";
-        end if;
-        counter_rx := counter_rx + 1; 
-    end if;
-    
-     -- проверяем наличие ошибок при записи
+     -- подсчитываем число ошибок при записи
     if rising_edge(error) then
         Time_Var := now;
-        echo("Wrong ACK at time " & time'image(Time_Var) & LF);
+        echo("Error detected at time " & time'image(Time_Var) & LF);
         echo("" & LF);
-        test_result := "FAIL";
+        counter_error := counter_error + 1;
     end if;
     
     -- вывод результатов теста
     if rising_edge(done) then
+        if counter_error /= 16 then
+            test_result := "FAIL";
+        end if;
+        
         echo("----------------------------------------------------------------------------------------" & LF);
-        echo("Number of transmitted words: " & integer'image(counter_tx) & LF);
-        echo("Number of received words: " & integer'image(counter_rx) & LF);
+        echo("Number of errors: " & integer'image(counter_error) & LF);
         echo("Test result: " & test_result & LF);
         echo("----------------------------------------------------------------------------------------" & LF);
     end if;

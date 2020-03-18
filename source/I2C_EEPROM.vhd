@@ -198,7 +198,7 @@ begin
         end if;
         -- если пришел стоп-бит
         if (SCL = 'H' or SCL = '1') and (SDA'event and SDA = 'H') then
-            if Write_Delay_ON = '0' then -- переходим в состояния задержки на запись
+            if Write_Delay_ON = '0' and WC_n = '0' then -- переходим в состояния задержки на запись
                 Write_Delay_ON <= '1', '0' after Write_Delay_Time;
             end if;
             EEPROM_State <= IDLE;
@@ -226,8 +226,10 @@ begin
                 EEPROM_State <= WRITE;
                 if SDA <= '0' then
                     -- записываем данные и увеличиваем адрес
-                    Mem_Data(RW_Address) <= RW_Data_Bits;
-                    RW_Address <= RW_Address + 1;
+                    if WC_n = '0' then 
+                        Mem_Data(RW_Address) <= RW_Data_Bits;
+                        RW_Address <= RW_Address + 1;
+                    end if;
                 end if;
             end if;    
             -- меняем значение флага
