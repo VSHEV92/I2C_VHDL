@@ -91,7 +91,9 @@ variable rx_byte       : std_logic_vector (7 downto 0);
 variable FSM_ctrl_byte : std_logic_vector (7 downto 0);
 
 -- счетчики времени находжения в заданном состоянии
-variable FSM_Counter : integer := 0;
+variable FSM_Counter : integer range 0 to 50 := 0;
+variable RX_Counter  : integer range 0 to 8 := 8;
+variable TX_Counter  : integer range 0 to 8:= 8;
 
 variable device_ID_ACK : std_logic := '1';
 
@@ -99,6 +101,8 @@ begin
     if rising_edge(clk) then
         if reset = '1' then
             FSM_Counter := 0;
+            RX_Counter := 8;
+            TX_Counter := 8;
             FSM_State <= IDLE;
             SCL_Tristate <= '0';
             SDA_Tristate <= '0';
@@ -177,7 +181,8 @@ begin
                             -- высталяем байт идентификации
                             -- ставим данные   
                             when 5|9|13|17|21|25|29|33 =>
-                                SDA_Value <= tx_byte(7 - (FSM_Counter-5)/4);
+                                TX_Counter := TX_Counter - 1;
+                                SDA_Value <= tx_byte(TX_Counter);
                             -- поднимаем SCL
                             when 6|10|14|18|22|26|30|34 =>
                                 SCL_Value <= '1';
@@ -198,6 +203,7 @@ begin
                             when 40 =>
                                 SCL_Value <= '0'; 
                                 FSM_Counter := 0;
+                                TX_Counter := 8;
                                 if device_ID_ACK = '0' then
                                     FSM_State <= FIFO_RE_STATE;  
                                 end if; 
@@ -215,7 +221,8 @@ begin
                             -- ставим данные
                             when 1|5|9|13|17|21|25|29 =>
                                 SDA_Tristate <= '1';
-                                SDA_Value <= tx_byte(7 - (FSM_Counter-1)/4);
+                                TX_Counter := TX_Counter - 1;
+                                SDA_Value <= tx_byte(TX_Counter);
                             -- поднимаем SCL
                             when 2|6|10|14|18|22|26|30 =>
                                 SCL_Value <= '1';
@@ -240,6 +247,7 @@ begin
                                 -- если это не последний байт, то сбрасываем счетчик и переходим считыванию следующего байта
                                 if FSM_ctrl_byte /= x"05" then
                                     FSM_Counter := 0;
+                                    TX_Counter := 8;
                                     FSM_State <= FIFO_RE_STATE;
                                 end if;
                             -- если это последний байт, то выставляем стоп-бит
@@ -255,6 +263,7 @@ begin
                             when 39 =>    
                                 SDA_Tristate <= '0';
                                 FSM_Counter := 0;
+                                TX_Counter := 8;
                                 FSM_State <= ANTI_SPUR_DELAY;                                           
                             when others => NULL;
                         end case;
@@ -275,7 +284,8 @@ begin
                                 SCL_Value <= '1';                                
                             -- читаем данные    
                             when 3|7|11|15|19|23|27|31 =>
-                                rx_byte(7 - (FSM_Counter-3)/4) := SDA;
+                                RX_Counter := RX_Counter - 1;
+                                rx_byte(RX_Counter) := SDA;
                             -- опускаем SCL
                             when 4|8|12|16|20|24|28|32 =>
                                 SCL_Value <= '0';   
@@ -303,6 +313,7 @@ begin
                                 if FSM_ctrl_byte /= x"04" then
                                     SDA_Tristate <= '0';
                                     FSM_Counter := 0;
+                                    RX_Counter := 8;
                                     FSM_State <= FIFO_RE_STATE;
                                 else
                                     SDA_Value <= '0';    
@@ -315,6 +326,7 @@ begin
                             when 39 =>    
                                 SDA_Tristate <= '0';
                                 FSM_Counter := 0;
+                                RX_Counter := 8;
                                 FSM_State <= ANTI_SPUR_DELAY;                                           
                             when others => NULL;
                         end case;
