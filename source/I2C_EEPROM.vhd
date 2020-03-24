@@ -164,8 +164,8 @@ begin
     -- состояние подтверждения второго байта адреса
     if EEPROM_State = GET_ADDR_2_ACK then
         -- обновляем значение адреса
-        RW_Address_Var(15 downto 8) := ADD_Data_Bits_2;
-        RW_Address_Var(7 downto 0)  := ADD_Data_Bits_1;
+        RW_Address_Var(15 downto 8) := ADD_Data_Bits_1;
+        RW_Address_Var(7 downto 0)  := ADD_Data_Bits_2;
         RW_Address <= TO_INTEGER(UNSIGNED(RW_Address_Var)); 
         
         SCL <= 'Z';
